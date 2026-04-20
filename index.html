@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disk Scheduling Simulator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f4f3ef;
+      --bg-tertiary: #eceae4;
+      --text-primary: #1a1a18;
+      --text-secondary: #73726c;
+      --border: rgba(0,0,0,0.12);
+      --border-md: rgba(0,0,0,0.22);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --blue-bg: #E6F1FB;
+      --blue-border: #378ADD;
+      --blue-text: #185FA5;
+      --blue-mid: #378ADD;
+      --info-bg: #E6F1FB;
+      --danger-bg: #FCEBEB;
+      --danger-text: #A32D2D;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1e1e1c;
+        --bg-secondary: #2a2a28;
+        --bg-tertiary: #333330;
+        --text-primary: #e8e6df;
+        --text-secondary: #888780;
+        --border: rgba(255,255,255,0.10);
+        --border-md: rgba(255,255,255,0.20);
+        --blue-bg: #042C53;
+        --blue-border: #85B7EB;
+        --blue-text: #B5D4F4;
+        --info-bg: #042C53;
+        --danger-bg: #501313;
+        --danger-text: #F09595;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .page-wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 600px) {
+      .top-grid { grid-template-columns: 1fr; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .compare-grid { grid-template-columns: 1fr !important; }
+      .algo-grid { grid-template-columns: 1fr !important; }
+    }
+
+    .label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-md);
+      border-radius: var(--radius-md);
+      padding: 8px 10px;
+      font-size: 14px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+
+    input[type="text"] { width: 100%; }
+    input[type="number"] { width: 90px; }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-color: var(--blue-border);
+    }
+
+    .input-note {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .algo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .algo-btn {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-md);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      transition: background .15s, border-color .15s;
+      color: var(--text-primary);
+    }
+
+    .algo-btn:hover { background: var(--bg-secondary); }
+
+    .algo-btn.active {
+      border: 1.5px solid var(--blue-border);
+      background: var(--blue-bg);
+      color: var(--blue-text);
+    }
+
+    .algo-name {
+      font-size: 13px;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .algo-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: block;
+    }
+
+    .algo-btn.active .algo-desc { color: var(--blue-text); opacity: 0.75; }
+
+    .run-btn {
+      width: 100%;
+      padding: 11px;
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-md);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      font-family: inherit;
+      margin-bottom: 20px;
+      transition: background .15s;
+    }
+
+    .run-btn:hover { background: var(--bg-secondary); }
+    .run-btn:active { transform: scale(0.99); }
+
+    .error {
+      color: var(--danger-text);
+      font-size: 13px;
+      padding: 10px 14px;
+      background: var(--danger-bg);
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .metric-unit {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-left: 2px;
+    }
+
+    .viz-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 16px;
+    }
+
+    .viz-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      height: 280px;
+    }
+
+    .sequence-box {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      line-height: 2;
+    }
+
+    .seq-item {
+      display: inline-block;
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin: 2px;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .seq-item.head {
+      background: var(--blue-bg);
+      border-color: var(--blue-border);
+      color: var(--blue-text);
+      font-weight: 500;
+    }
+
+    .seq-arrow {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin: 0 1px;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .compare-item {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      border: 1px solid transparent;
+      transition: border-color .2s;
+    }
+
+    .compare-item.active-algo {
+      border-color: var(--blue-border);
+    }
+
+    .compare-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .compare-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .compare-val {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .bar-track {
+      background: var(--border);
+      border-radius: 3px;
+      height: 5px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 5px;
+      border-radius: 3px;
+      background: #378ADD;
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+    }
+
+    .best-badge {
+      font-size: 10px;
+      background: #EAF3DE;
+      color: #3B6D11;
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-left: 6px;
+      font-weight: 500;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .best-badge { background: #173404; color: #C0DD97; }
+    }
+
+    #results { display: none; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <header>
+      <h1>Disk Scheduling Simulator</h1>
+      <p>Visualize FCFS, SSTF, SCAN, and C-SCAN algorithms with performance metrics</p>
+    </header>
+
+    <div class="top-grid">
+      <div class="card">
+        <div class="label">Disk queue — cylinder numbers (comma-separated)</div>
+        <input type="text" id="queue-input" value="98,183,37,122,14,124,65,67" placeholder="e.g. 98,183,37,122">
+        <div class="input-note">Each value must be between 0 and disk size − 1</div>
+      </div>
+      <div class="card">
+        <div class="label">Initial head position &amp; disk size</div>
+        <div class="input-row">
+          <input type="number" id="head-input" value="53" min="0">
+          <span style="font-size:13px;color:var(--text-secondary)">head &nbsp;/</span>
+          <input type="number" id="size-input" value="200" min="10">
+          <span style="font-size:13px;color:var(--text-secondary)">cylinders</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="algo-grid" id="algo-grid">
+      <button class="algo-btn active" data-algo="fcfs" onclick="selectAlgo('fcfs')">
+        <span class="algo-name">FCFS</span>
+        <span class="algo-desc">First Come, First Served — requests served in arrival order</span>
+      </button>
+      <button class="algo-btn" data-algo="sstf" onclick="selectAlgo('sstf')">
+        <span class="algo-name">SSTF</span>
+        <span class="algo-desc">Shortest Seek Time First — nearest cylinder request next</span>
+      </button>
+      <button class="algo-btn" data-algo="scan" onclick="selectAlgo('scan')">
+        <span class="algo-name">SCAN (Elevator)</span>
+        <span class="algo-desc">Sweeps in one direction then reverses at disk end</span>
+      </button>
+      <button class="algo-btn" data-algo="cscan" onclick="selectAlgo('cscan')">
+        <span class="algo-name">C-SCAN</span>
+        <span class="algo-desc">One-way sweep, jumps back to cylinder 0 to continue</span>
+      </button>
+    </div>
+
+    <button class="run-btn" onclick="runSimulation()">Run Simulation →</button>
+
+    <div id="error-box" class="error"></div>
+
+    <div id="results">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total seek distance</div>
+          <div><span class="metric-value" id="m-total">0</span><span class="metric-unit">cyl</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg seek per request</div>
+          <div><span class="metric-value" id="m-avg">0</span><span class="metric-unit">cyl</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Max single seek</div>
+          <div><span class="metric-value" id="m-max">0</span><span class="metric-unit">cyl</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Requests served</div>
+          <div><span class="metric-value" id="m-count">0</span></div>
+        </div>
+      </div>
+
+      <div class="viz-card">
+        <div class="viz-title">Head movement visualization</div>
+        <div class="chart-wrapper">
+          <canvas id="movement-chart" role="img" aria-label="Line chart showing disk head movement across cylinder positions for the selected algorithm.">Disk head movement chart.</canvas>
+        </div>
+      </div>
+
+      <div class="viz-card">
+        <div class="viz-title">Service order</div>
+        <div class="sequence-box" id="sequence-box"></div>
+      </div>
+
+      <div class="viz-card">
+        <div class="viz-title">Algorithm comparison — total seek distance</div>
+        <div class="compare-grid" id="compare-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedAlgo = 'fcfs';
+    let chart = null;
+
+    const COLORS = {
+      fcfs:  '#378ADD',
+      sstf:  '#1D9E75',
+      scan:  '#D85A30',
+      cscan: '#BA7517',
+    };
+    const NAMES = { fcfs: 'FCFS', sstf: 'SSTF', scan: 'SCAN', cscan: 'C-SCAN' };
+
+    function selectAlgo(a) {
+      selectedAlgo = a;
+      document.querySelectorAll('.algo-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.algo === a)
+      );
+    }
+
+    function parseInputs() {
+      const raw = document.getElementById('queue-input').value;
+      const head = parseInt(document.getElementById('head-input').value);
+      const size = parseInt(document.getElementById('size-input').value);
+      const queue = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      return { queue, head, size };
+    }
+
+    // --- Algorithms ---
+    function fcfs(queue, head) {
+      return [head, ...queue];
+    }
+
+    function sstf(queue, head) {
+      let remaining = [...queue];
+      let pos = head;
+      const order = [head];
+      while (remaining.length > 0) {
+        let minDist = Infinity, minIdx = 0;
+        remaining.forEach((r, i) => {
+          const d = Math.abs(r - pos);
+          if (d < minDist) { minDist = d; minIdx = i; }
+        });
+        pos = remaining[minIdx];
+        order.push(pos);
+        remaining.splice(minIdx, 1);
+      }
+      return order;
+    }
+
+    function scan(queue, head, size) {
+      const order = [head];
+      const sorted = [...queue].sort((a, b) => a - b);
+      const right = sorted.filter(r => r >= head);
+      const left  = sorted.filter(r => r < head).reverse();
+      right.forEach(r => order.push(r));
+      if (right.length > 0) order.push(size - 1);
+      left.forEach(r => order.push(r));
+      return order;
+    }
+
+    function cscan(queue, head, size) {
+      const order = [head];
+      const sorted = [...queue].sort((a, b) => a - b);
+      const right = sorted.filter(r => r >= head);
+      const left  = sorted.filter(r => r < head);
+      right.forEach(r => order.push(r));
+      if (left.length > 0) {
+        order.push(size - 1);
+        order.push(0);
+        left.forEach(r => order.push(r));
+      }
+      return order;
+    }
+
+    function runAlgo(algo, queue, head, size) {
+      if (algo === 'fcfs')  return fcfs(queue, head);
+      if (algo === 'sstf')  return sstf(queue, head);
+      if (algo === 'scan')  return scan(queue, head, size);
+      if (algo === 'cscan') return cscan(queue, head, size);
+    }
+
+    function seekDistance(order) {
+      let total = 0;
+      for (let i = 1; i < order.length; i++) total += Math.abs(order[i] - order[i - 1]);
+      return total;
+    }
+
+    // --- Main run ---
+    function runSimulation() {
+      const errBox = document.getElementById('error-box');
+      errBox.style.display = 'none';
+
+      const { queue, head, size } = parseInputs();
+
+      if (queue.length === 0) {
+        errBox.textContent = 'Please enter at least one cylinder number in the queue.';
+        errBox.style.display = 'block'; return;
+      }
+      if (isNaN(head) || head < 0 || head >= size) {
+        errBox.textContent = 'Head position must be between 0 and disk size − 1.';
+        errBox.style.display = 'block'; return;
+      }
+      if (queue.some(r => r < 0 || r >= size)) {
+        errBox.textContent = 'All cylinder numbers must be between 0 and ' + (size - 1) + '.';
+        errBox.style.display = 'block'; return;
+      }
+
+      const order = runAlgo(selectedAlgo, queue, head, size);
+      const total = seekDistance(order);
+      const seeks = [];
+      for (let i = 1; i < order.length; i++) seeks.push(Math.abs(order[i] - order[i - 1]));
+      const avg    = seeks.length > 0 ? total / seeks.length : 0;
+      const maxSeek = seeks.length > 0 ? Math.max(...seeks) : 0;
+
+      document.getElementById('m-total').textContent = total;
+      document.getElementById('m-avg').textContent   = avg.toFixed(1);
+      document.getElementById('m-max').textContent   = maxSeek;
+      document.getElementById('m-count').textContent = queue.length;
+
+      // Sequence
+      const seqBox = document.getElementById('sequence-box');
+      seqBox.innerHTML = order.map((v, i) =>
+        `<span class="seq-item${i === 0 ? ' head' : ''}">${v}</span>${i < order.length - 1 ? '<span class="seq-arrow">→</span>' : ''}`
+      ).join('');
+
+      drawChart(order, size);
+      drawComparison(queue, head, size);
+      document.getElementById('results').style.display = 'block';
+    }
+
+    function drawChart(order, size) {
+      const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+      const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+      const textColor = isDark ? '#888780' : '#888780';
+
+      const labels = order.map((_, i) => i === 0 ? 'Start' : 'Step ' + i);
+      if (chart) { chart.destroy(); chart = null; }
+      chart = new Chart(document.getElementById('movement-chart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: NAMES[selectedAlgo],
+            data: order,
+            borderColor: COLORS[selectedAlgo],
+            backgroundColor: COLORS[selectedAlgo] + '18',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: COLORS[selectedAlgo],
+            pointBorderColor: '#fff',
+            pointBorderWidth: 1.5,
+            tension: 0,
+            fill: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: ctx => ctx[0].label,
+                label: ctx => '  Cylinder: ' + ctx.parsed.y,
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: { color: textColor, font: { size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+            },
+            y: {
+              min: 0,
+              max: size - 1,
+              grid: { color: gridColor },
+              ticks: { color: textColor, font: { size: 11 } },
+              title: { display: true, text: 'Cylinder position', color: textColor, font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function drawComparison(queue, head, size) {
+      const results = {};
+      ['fcfs', 'sstf', 'scan', 'cscan'].forEach(a => {
+        results[a] = seekDistance(runAlgo(a, queue, head, size));
+      });
+      const maxVal = Math.max(...Object.values(results));
+      const minVal = Math.min(...Object.values(results));
+
+      const grid = document.getElementById('compare-grid');
+      grid.innerHTML = ['fcfs', 'sstf', 'scan', 'cscan'].map(a => {
+        const pct = maxVal > 0 ? Math.round((results[a] / maxVal) * 100) : 0;
+        const isActive = a === selectedAlgo;
+        const isBest   = results[a] === minVal;
+        return `<div class="compare-item${isActive ? ' active-algo' : ''}">
+          <div class="compare-header">
+            <span class="compare-name">${NAMES[a]}${isBest ? '<span class="best-badge">best</span>' : ''}</span>
+            <span class="compare-val">${results[a]} cyl</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${pct}%;background:${isActive ? COLORS[a] : '#B4B2A9'}"></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // Run on load with defaults
+    runSimulation();
+  </script>
+</body>
+</html>
